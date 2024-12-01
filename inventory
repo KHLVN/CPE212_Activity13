@@ -1,0 +1,6 @@
+[controller]
+server1
+
+[computing]
+centos9 ansible_user=user_khlvn
+

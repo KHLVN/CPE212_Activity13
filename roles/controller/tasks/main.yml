@@ -1,0 +1,114 @@
+---
+# NTP
+- name: Install NTP Package
+  package:
+    name: chrony
+    state: present
+
+- name: Configure NTP server/client
+  template:
+    src: templates/chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+
+- name: Restart NTP service
+  service:
+    name: chronyd
+    state: restarted
+    enabled: yes
+
+# SQL
+- name: Install MariaDB
+  package:
+    name:
+      - mariadb-server
+      - python3-pymysql
+    state: present
+
+- name: Configure MariaDB
+  template:
+    src: templates/mariadb.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-openstack.cnf
+
+- name: Restart MariaDB
+  service:
+    name: mariadb
+    state: restarted
+
+
+# RabbitMQ
+- name: Install RabbitMQ
+  package:
+    name: rabbitmq-server
+    state: present
+
+- name: Enable RabbitMQ service
+  service:
+    name: rabbitmq-server
+    state: started
+    enabled: yes
+
+- name: Add OpenStack user to RabbitMQ
+  vars:
+    rabbitmq_password: "toor"
+  command: >
+    rabbitmqctl add_user openstack {{ rabbitmq_password }}
+  args:
+    creates: /var/lib/rabbitmq/.rabbitmqctl_user_created
+
+- name: Set permissions for OpenStack user
+  command: >
+    rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+  args:
+    creates: /var/lib/rabbitmq/.rabbitmqctl_permissions_set
+
+# Memcached
+- name: Install Memcached
+  package:
+    name: memcached
+    state: present
+
+- name: Configure Memcached
+  lineinfile:
+    path: /etc/memcached.conf
+    regexp: '-l 127.0.0.1'
+    line: '-l 0.0.0.0'
+
+- name: Restart Memcached
+  service:
+    name: memcached
+    state: restarted
+
+
+
+# Etcd
+- name: Install Etcd
+  package:
+    name: etcd
+    state: present
+
+- name: Configure Etcd
+  copy:
+    src: templates/etcd.conf.yml
+    dest: /etc/default/etcd
+
+- name: Restart Etcd
+  service:
+    name: etcd
+    state: restarted
+
+
+# OpenStack
+- name: Enable OpenStack repository
+  apt_repository:
+    repo: "ppa:cloud-archive/wallaby"
+    state: present
+
+- name: Upgrade packages
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: Install OpenStack clients
+  apt:
+    name: python3-openstackclient
+    state: present
